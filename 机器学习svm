@@ -1,1 +1,145 @@
+import pandas as pd
+import numpy as np
+from sklearn.neighbors import KNeighborsClassifier  # 导入KNN
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import os
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix  # 导入混淆矩阵
+import seaborn as sns  # 导入 seaborn，用于可视化
 
+# 定义文件路径和列名
+column_names = [f'feature_{i + 1}' for i in range(52)] + ['fault_label']  # 52个特征 + 目标列
+
+
+# 加载数据的函数
+def load_data(file_path, fault_label=None):
+    # 加载数据，假设每个数据文件是以空格分隔的
+    data = pd.read_csv(file_path, delim_whitespace=True, header=None, names=column_names[:-1])
+    # 如果有故障标签，添加到数据中
+    if fault_label is not None:
+        data['fault_label'] = fault_label
+    else:
+        data['fault_label'] = 0  # 正常数据标签为0
+    return data
+
+
+# 训练集和测试集的文件路径
+train_files = [f'C:\\Users\\关明珠\\Desktop\\te数据集\\训练集\\d{str(i).zfill(2)}.dat' for i in range(22)]
+test_files = [f'C:\\Users\\关明珠\\Desktop\\te数据集\\测试集\\d{str(i).zfill(2)}_te.dat' for i in range(22)]
+
+# 加载训练集数据
+train_data_list = []
+for i, file in enumerate(train_files):
+    fault_label = 0 if i == 0 else i  # d00.dat为正常数据，其他为故障数据
+    train_data_list.append(load_data(file, fault_label))
+
+train_data = pd.concat(train_data_list, ignore_index=True)
+
+# 加载测试集数据
+test_data_list = []
+for i, file in enumerate(test_files):
+    fault_label = 0 if i == 0 else i  # d00_te.dat为正常数据，其他为故障数据
+    test_data_list.append(load_data(file, fault_label))
+
+test_data = pd.concat(test_data_list, ignore_index=True)
+
+# 查看数据的基本信息
+print("训练集基本信息:")
+print(train_data.head())
+print(train_data.info())
+
+print("测试集基本信息:")
+print(test_data.head())
+print(test_data.info())
+
+# 特征列和目标列
+X_train = train_data.drop(columns=['fault_label'])
+y_train = train_data['fault_label']
+
+X_test = test_data.drop(columns=['fault_label'])
+y_test = test_data['fault_label']
+
+# 数据标准化，SVM对特征的尺度敏感
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)  # 使用训练集的scaler对测试集进行转换
+
+# 创建knn模型
+knn_model = KNeighborsClassifier()  # 可以调整邻居数n_neighbors
+
+# 用于可视化准确率曲线
+neighbors_range = range(1, 21)  # 设置邻居数范围
+train_accuracies = []
+test_accuracies = []
+
+for n_neighbors in neighbors_range:
+    knn_model.n_neighbors = n_neighbors
+    knn_model.fit(X_train_scaled, y_train)
+
+    # 计算训练集和测试集的准确率
+    train_acc = accuracy_score(y_train, knn_model.predict(X_train_scaled))
+    test_acc = accuracy_score(y_test, knn_model.predict(X_test_scaled))
+
+    train_accuracies.append(train_acc)
+    test_accuracies.append(test_acc)
+
+# 可视化准确率曲线
+plt.figure(figsize=(8, 6))
+plt.plot(neighbors_range, train_accuracies, label='Training Accuracy', marker='o')
+plt.plot(neighbors_range, test_accuracies, label='Testing Accuracy', marker='o')
+plt.title('Accuracy vs. Number of Neighbors (KNN)', fontsize=14)
+plt.xlabel('Number of Neighbors (k)', fontsize=12)
+plt.ylabel('Accuracy', fontsize=12)
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# 创建最优KNN模型（使用训练集的最佳k值）
+optimal_k = neighbors_range[np.argmax(test_accuracies)]  # 获取在测试集上表现最好的k值
+print(f"最优邻居数（k值）: {optimal_k}")
+
+# 训练最优模型并进行预测
+knn_model.n_neighbors = optimal_k
+knn_model.fit(X_train_scaled, y_train)
+y_pred = knn_model.predict(X_test_scaled)
+
+# 打印分类报告
+print("分类报告:\n", classification_report(y_test, y_pred))
+
+# 计算准确率
+accuracy = accuracy_score(y_test, y_pred)
+print(f"准确率: {accuracy:.4f}")
+
+# 计算混淆矩阵
+cm = confusion_matrix(y_test, y_pred)
+
+# 可视化混淆矩阵
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['normal', 'error'], yticklabels=['normal', 'error'])
+plt.title('Confusion Matrix')
+plt.xlabel('Prediction Label')
+plt.ylabel('True Label')
+plt.show()
+
+# 最终训练后的模型评估
+best_dt_model.fit(X_train_scaled, y_train)
+y_pred = best_dt_model.predict(X_test_scaled)
+
+# 打印分类报告
+print("分类报告：\n", classification_report(y_test, y_pred))
+
+# 计算准确率
+accuracy = accuracy_score(y_test, y_pred)
+print(f"准确率： {accuracy:.4f}")
+
+# 计算混淆矩阵
+cm = confusion_matrix(y_test, y_pred)
+
+# 可视化混淆矩阵
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['normal', 'error'], yticklabels=['normal', 'error'])
+plt.title('混淆矩阵')
+plt.xlabel('预测标签')
+plt.ylabel('真实标签')
+plt.show()
